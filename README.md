@@ -53,6 +53,27 @@ auth.js      → middleware kiểm tra admin token
 data.sqlite  → DB tự sinh, đừng xoá nếu không muốn mất data
 ```
 
+## Deploy lên Render
+
+Repo đã có sẵn `render.yaml` — Render tự đọc file này (Blueprint) và cấu hình đúng, không cần bấm tay trong dashboard:
+
+1. Push code này lên GitHub, rồi trên Render chọn **New > Blueprint**, trỏ vào repo.
+2. Render sẽ hỏi giá trị cho `ADMIN_TOKEN` (đánh dấu `sync: false` nên không lưu sẵn trong file, phải nhập tay lúc deploy) — đặt 1 chuỗi bí mật dài, đừng để trống.
+3. `render.yaml` đã tự gắn **Persistent Disk** 1GB tại `/opt/render/project/data` và trỏ `DB_PATH` vào đó. **Bắt buộc phải có bước này** — free tier của Render không giữ filesystem giữa các lần container restart/sleep, nên nếu không gắn disk, `data.sqlite` sẽ mất sạch mỗi khi service ngủ dậy, dù code persist đúng logic.
+
+### Nếu không dùng render.yaml (deploy tay qua dashboard)
+
+Set thủ công trong phần **Settings** của service:
+- Build Command: `rm -f yarn.lock package-lock.json && npm install`
+- Start Command: `npm start`
+- Thêm 1 Disk, mount vào ví dụ `/opt/render/project/data`, rồi set env `DB_PATH=/opt/render/project/data/data.sqlite`
+
+Lý do cần xoá `yarn.lock`/`package-lock.json` trong build command: Render tự phát hiện package manager dựa vào lockfile nào có sẵn trên máy chủ (kể cả lockfile sót lại từ lần deploy trước). Nếu máy chủ đang có `package-lock.json` cũ trong khi lần deploy mới build bằng yarn, log sẽ hiện cảnh báo lẫn lộn package manager. Dòng `rm -f` đảm bảo luôn build sạch bằng `npm install` mỗi lần, khớp với `package.json` hiện tại.
+
+### Vì sao trước đó bị warning đỏ trong log
+
+Mấy dòng warning (`No license field`, `better-sqlite3 ... No longer maintained`) không phải lỗi làm fail build — build vẫn tiếp tục chạy sau đó. Đã thêm `"license": "MIT"` vào `package.json` để tắt warning đầu. Warning `better-sqlite3` deprecated là do chính tác giả package đó không maintain activity thường xuyên nữa (khác với "không hoạt động") — bản `11.3.0` vẫn build và chạy bình thường, đã ghim cứng version này (bỏ dấu `^`) để tránh Render tự kéo bản mới hơn có thể chưa có prebuilt binary cho môi trường của họ, việc đó mới thực sự gây build fail (phải compile from source, dễ timeout trên free tier).
+
 ## Việc chưa làm (nói để cậu biết, không tự ý làm)
 
 - Chưa thêm rate-limit cho `/api/event` — nếu script game gọi quá nhiều có thể cần thêm `express-rate-limit`.

@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: job-tracker-api
+    runtime: node
+    plan: free
+    buildCommand: rm -f yarn.lock package-lock.json && npm install
+    startCommand: npm start
+    envVars:
+      - key: ADMIN_TOKEN
+        sync: false
+      - key: DB_PATH
+        value: /opt/render/project/data/data.sqlite
+    disk:
+      name: job-tracker-data
+      mountPath: /opt/render/project/data
+      sizeGB: 1
